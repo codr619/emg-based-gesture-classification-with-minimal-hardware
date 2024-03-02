@@ -1,0 +1,105 @@
+# EMG Envelop - BioAmp EXG Pill
+# https://github.com/upsidedownlabs/BioAmp-EXG-Pill
+
+# Upside Down Labs invests time and resources providing this open source code,
+# please support Upside Down Labs and open-source hardware by purchasing
+# products from Upside Down Labs!
+
+# Copyright (c) 2021 Upside Down Labs - contact@upsidedownlabs.tech
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+from machine import Pin, ADC
+import utime
+
+SAMPLE_RATE = 500
+BAUD_RATE = 115200
+INPUT_PIN = ADC(Pin(26))  # Change Pin number if necessary
+BUFFER_SIZE = 128
+
+circular_buffer = [0] * BUFFER_SIZE
+data_index = 0
+sum_val = 0
+
+def EMGFilter(input_val):
+    global z1_1, z2_1, z1_2, z2_2, z1_3, z2_3, z1_4, z2_4
+    output = input_val
+    # Filter section 1
+    x = output - 0.05159732 * z1_1 - 0.36347401 * z2_1
+    output = 0.01856301 * x + 0.03712602 * z1_1 + 0.01856301 * z2_1
+    z2_1 = z1_1
+    z1_1 = x
+    # Filter section 2
+    x = output - (-0.53945795 * z1_2) - (0.39764934 * z2_2)
+    output = 1.00000000 * x + -2.00000000 * z1_2 + 1.00000000 * z2_2
+    z2_2 = z1_2
+    z1_2 = x
+    # Filter section 3
+    x = output - 0.47319594 * z1_3 - 0.70744137 * z2_3
+    output = 1.00000000 * x + 2.00000000 * z1_3 + 1.00000000 * z2_3
+    z2_3 = z1_3
+    z1_3 = x
+    # Filter section 4
+    x = output - (-1.00211112 * z1_4) - (0.74520226 * z2_4)
+    output = 1.00000000 * x + -2.00000000 * z1_4 + 1.00000000 * z2_4
+    z2_4 = z1_4
+    z1_4 = x
+    return output
+
+def getEnvelop(abs_emg):
+    global sum_val, data_index
+    sum_val -= circular_buffer[data_index]
+    sum_val += abs_emg
+    circular_buffer[data_index] = abs_emg
+    data_index = (data_index + 1) % BUFFER_SIZE
+    return int((sum_val / BUFFER_SIZE) * 2)
+
+def setup():
+    # Serial connection begin - Not needed for Raspberry Pi Pico
+    pass
+
+def loop():
+    # Calculate elapsed time
+    past = utime.ticks_us()
+    
+    # Run timer
+    timer = 0
+    
+    # Sample and get envelop
+    if timer < 0:
+        timer += 1000000 / SAMPLE_RATE
+        sensor_value = INPUT_PIN.read_u16()
+        signal = EMGFilter(sensor_value)
+        envelop = getEnvelop(abs(signal))
+        print(signal, ",", envelop)
+    
+    # Delay to maintain sample rate
+    while utime.ticks_diff(utime.ticks_us(), past) < (1000000 / SAMPLE_RATE):
+        pass
+
+# Initialize filter section states
+z1_1, z2_1 = 0, 0
+z1_2, z2_2 = 0, 0
+z1_3, z2_3 = 0, 0
+z1_4, z2_4 = 0, 0
+
+# Main program
+setup()
+while True:
+    loop()
