@@ -1,6 +1,5 @@
 import machine
 import time
-import csv
 
 # Define the analog pins connected to the sensors
 analog_pin_1 = machine.ADC(26)  # Pin 26
@@ -8,9 +7,8 @@ analog_pin_2 = machine.ADC(27)  # Pin 27
 
 # Create/open a CSV file to store the data
 file_name = "analog_data.csv"
-with open(file_name, "w", newline="") as file:
-    writer = csv.writer(file)
-    writer.writerow(["Timestamp", "Maximum Voltage (V)"])
+with open(file_name, "w") as file:
+    file.write("Timestamp,Maximum Voltage (V)\n")
 
     # Set the duration for data collection (in seconds)
     collection_duration = 10  # Collect data for 10 seconds
@@ -35,7 +33,7 @@ with open(file_name, "w", newline="") as file:
         data.append((timestamp, max_voltage))
 
         # Write the data to the CSV file
-        writer.writerow([timestamp, max_voltage])
+        file.write(f"{timestamp},{max_voltage}\n")
 
         # Wait for the sampling interval before taking the next reading
         time.sleep(sampling_interval)
