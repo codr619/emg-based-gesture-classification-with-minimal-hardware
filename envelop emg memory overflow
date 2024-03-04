@@ -1,0 +1,50 @@
+import machine
+import time
+
+# Define the analog pins connected to the sensors
+analog_pin_1 = machine.ADC(26)  # Pin 26
+analog_pin_2 = machine.ADC(27)  # Pin 27
+
+# Create/open a CSV file to store the data
+file_name = "analog_data.csv"
+with open(file_name, "w") as file:
+    file.write("Timestamp,Maximum Voltage (V)\n")
+
+    # Set the duration for data collection (in seconds)
+    collection_duration = 10  # Collect data for 10 seconds
+    sampling_interval = 1 / 1000  # Sampling interval of 1/5000 seconds
+
+    data = []
+    start_time = time.time()
+    while (time.time() - start_time) < collection_duration:
+        # Read analog values from the sensors
+        sensor_value_1 = analog_pin_1.read_u16()
+        sensor_value_2 = analog_pin_2.read_u16()
+
+        # Convert the analog values to voltage (assuming 3.3V reference)
+        voltage_value_1 = sensor_value_1 * 3.3 / 65535
+        voltage_value_2 = sensor_value_2 * 3.3 / 65535
+
+        # Get the current timestamp
+        timestamp = time.time()
+
+        # Append the maximum of the two voltages to the data list
+        max_voltage = max(voltage_value_1, voltage_value_2)
+        data.append((timestamp, max_voltage))
+
+        # Write the data to the CSV file
+        file.write(f"{timestamp},{max_voltage}\n")
+
+        # Wait for the sampling interval before taking the next reading
+        time.sleep(sampling_interval)
+
+# Plotting the envelope of the maximum values
+import matplotlib.pyplot as plt
+
+timestamps, max_voltages = zip(*data)
+plt.plot(timestamps, max_voltages)
+plt.xlabel("Time (s)")
+plt.ylabel("Maximum Voltage (V)")
+plt.title("Envelope of Maximum Voltage Values")
+plt.grid(True)
+plt.show()
